@@ -1,289 +1,118 @@
-# Awesome Bitquery Solana Transfers (V1) [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
+# Awesome Solana Transfers API
 
-> A curated list of resources, queries, and tutorials for tracking **Solana SPL token & SOL transfers** with the **Bitquery V1 GraphQL API**.
+A list of resources for querying **Solana SPL token & SOL transfers** using the **Bitquery V1 GraphQL API**.
 
-[Bitquery](https://bitquery.io) is the most comprehensive blockchain data platform for Solana — indexing every block, transaction, instruction, and transfer since the genesis block. The **V1 Solana Transfers API** lets you query historical SOL and SPL token movements with a single GraphQL endpoint — no node infrastructure, no parsing, no headaches.
+I ended up using Bitquery V1 for a side project (a wallet PnL tracker) and spent a while piecing this together from docs, the IDE, and Telegram threads. Sharing the queries that ended up being useful in case it saves someone else the time.
 
-> **Note:** Bitquery V1 (`graphql.bitquery.io`) is the legacy API. For new projects (real-time WebSocket subscriptions, Pump.fun, Raydium, gRPC CoreCast streams), see the [V2 Solana API](https://docs.bitquery.io/docs/blockchain/Solana/). V1 remains the easiest way to query historical, aggregated transfer data with simple `options`/`date` filters.
+> **Heads up:** V1 is the legacy endpoint. It's still solid for historical/aggregated transfer queries, but if you need WebSocket subscriptions, Pump.fun/Raydium decoded data, or gRPC streams, you'll want V2 instead. See the migration table below.
 
 ---
 
 ## Contents
 
-- [Why Bitquery for Solana Transfers](#why-bitquery-for-solana-transfers)
-- [Quick Start](#quick-start)
-- [Authentication](#authentication)
-- [Core Query Examples](#core-query-examples)
-  - [Latest SOL & SPL transfers](#latest-sol--spl-transfers)
-  - [Transfers for a specific wallet](#transfers-for-a-specific-wallet)
-  - [Transfers for a specific token (mint)](#transfers-for-a-specific-token-mint)
+- [Endpoint & auth](#endpoint--auth)
+- [Queries](#queries)
+  - [Latest transfers](#latest-transfers)
+  - [Transfers for a wallet](#transfers-for-a-wallet)
+  - [Transfers for a specific Token](#transfers-for-a-specific-token)
   - [Aggregate volume over time](#aggregate-volume-over-time)
   - [Top senders / receivers](#top-senders--receivers)
-  - [Inbound vs outbound for an address](#inbound-vs-outbound-for-an-address)
+  - [Inbound vs outbound](#inbound-vs-outbound)
   - [Transfers for a transaction signature](#transfers-for-a-transaction-signature)
-- [Migration Path: V1 → V2](#migration-path-v1--v2)
-- [Tools, IDEs & SDKs](#tools-ides--sdks)
-- [Use Cases](#use-cases)
-- [Pricing](#pricing)
-- [Community & Support](#community--support)
-- [License](#license)
+- [V1 → V2 cheatsheet](#v1--v2-cheatsheet)
+- [Tools](#tools)
+- [Links](#links)
 
 ---
 
-## Why Bitquery for Solana Transfers
+## Endpoint & auth
 
-- **Complete Solana history** — Every SOL and SPL transfer indexed since genesis. No 1,000-tx RPC ceiling, no `getSignaturesForAddress` pagination loops.
-- **Decoded & enriched** — Transfers come pre-decoded with token metadata (`name`, `symbol`, `decimals`), USD value (`AmountInUSD`), and sender/receiver context.
-- **Single GraphQL endpoint** — Replaces dozens of RPC calls. Filter, sort, aggregate, and join in one round-trip.
-- **Aggregations built in** — `count`, `sum`, `uniq` over any field, with date bucketing, without dragging raw rows into your app.
-- **Multi-chain** — Same schema patterns across Ethereum, BSC, Tron, Cardano, and 40+ other networks.
+V1 endpoint: `https://graphql.bitquery.io`
 
----
-
-## Quick Start
-
-**V1 GraphQL endpoint:** `https://graphql.bitquery.io`
+You need an access token. Sign up at [account.bitquery.io](https://account.bitquery.io/auth/signup?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana) and generate one at [account.bitquery.io/user/api_v2/access_tokens](https://account.bitquery.io/user/api_v2/access_tokens?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana). Pass it as `Authorization: Bearer <token>`.
 
 ```bash
 curl -X POST https://graphql.bitquery.io \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_BITQUERY_TOKEN" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{"query":"{ solana(network: solana) { transfers(options: {limit: 5, desc: \"block.timestamp.unixtime\"}) { transaction { signature } amount currency { symbol address } sender { address } receiver { address } } } }"}'
 ```
 
-## Authentication
-
-1. Sign up at [account.bitquery.io](https://account.bitquery.io/auth/signup).
-2. Generate an access token at [account.bitquery.io/user/api_v2/access_tokens](https://account.bitquery.io/user/api_v2/access_tokens).
-3. Send it as a Bearer token in the `Authorization` header.
-
-Full auth guide: [docs.bitquery.io/docs/authorisation/how-to-generate](https://docs.bitquery.io/docs/authorisation/how-to-generate/)
+Auth walkthrough: [docs.bitquery.io/docs/authorisation/how-to-generate](https://docs.bitquery.io/docs/authorisation/how-to-generate/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana)
 
 ---
 
-## Core Query Examples
+## Queries
 
-Open any of these in the [Bitquery IDE](https://ide.bitquery.io/) to run instantly.
+All of these run as-is in the [Bitquery IDE](https://ide.bitquery.io/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana).
 
-### Latest SOL & SPL transfers
+### Latest transfers
 
-Returns the 10 most recent transfers across the Solana blockchain — both native SOL and SPL tokens.
+[Most recent SOL + SPL transfers across the chain](https://ide.bitquery.io/latest-Solana-transfers/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana).
 
-```graphql
-{
-  solana(network: solana) {
-    transfers(
-      options: {limit: 10, desc: "block.timestamp.unixtime"}
-    ) {
-      block {
-        timestamp { time(format: "%Y-%m-%d %H:%M:%S") }
-        height
-      }
-      transaction { signature }
-      sender { address }
-      receiver { address }
-      amount
-      currency { symbol address name decimals }
-    }
-  }
-}
-```
+### Transfers for a wallet
 
-### Transfers for a specific wallet
+[Both sent and received transfers for a wallet within a date range](https://ide.bitquery.io/transfers-by-a-wallet/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana).
 
-Get inflows AND outflows for a single Solana wallet over a date range.
+### Transfers for a specific Token
 
-```graphql
-{
-  solana(network: solana) {
-    transfers(
-      options: {limit: 100, desc: "block.timestamp.unixtime"}
-      date: {since: "2024-01-01", till: "2024-12-31"}
-      any: [
-        {senderAddress: {is: "9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8"}}
-        {receiverAddress: {is: "9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8"}}
-      ]
-    ) {
-      block { timestamp { time } }
-      transaction { signature }
-      sender { address }
-      receiver { address }
-      amount
-      amount_usd: amount(in: USD)
-      currency { symbol address }
-    }
-  }
-}
-```
-
-### Transfers for a specific token (mint)
-
-Track every transfer of a specific SPL token — useful for memecoin analytics, holder distribution, and circulating-supply checks.
-
-```graphql
-{
-  solana(network: solana) {
-    transfers(
-      options: {limit: 100, desc: "block.timestamp.unixtime"}
-      currency: {is: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}  # USDC mint
-    ) {
-      block { timestamp { time } }
-      transaction { signature }
-      sender { address }
-      receiver { address }
-      amount
-      currency { symbol address }
-    }
-  }
-}
-```
+[Filter by SPL mint address. USDC mint shown](https://ide.bitquery.io/transfers-for-a-token/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana).
 
 ### Aggregate volume over time
 
-Bucket SPL token transfer volume into daily intervals — perfect for dashboards and analytics.
-
-```graphql
-{
-  solana(network: solana) {
-    transfers(
-      options: {asc: "date.date"}
-      date: {since: "2024-01-01"}
-      currency: {is: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}
-    ) {
-      date { date(format: "%Y-%m-%d") }
-      count
-      transferred: amount
-      transferred_usd: amount(in: USD)
-      unique_senders: count(uniq: senders)
-      unique_receivers: count(uniq: receivers)
-    }
-  }
-}
-```
+[Daily buckets such as transfers count, total volume, USD volume, unique senders/receivers per day](https://ide.bitquery.io/daily-transfer-stats/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana).
 
 ### Top senders / receivers
 
-Rank wallets by total tokens transferred — great for whale-leaderboard widgets.
+[Rank wallets by total amount sent for a given mint](https://ide.bitquery.io/highest-senders/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana).
 
-```graphql
-{
-  solana(network: solana) {
-    transfers(
-      options: {limit: 50, desc: "amount"}
-      currency: {is: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}
-      date: {since: "2024-01-01"}
-    ) {
-      sender { address }
-      total_sent: amount
-      txn_count: count
-    }
-  }
-}
-```
+### Inbound vs outbound
 
-### Inbound vs outbound for an address
-
-Compute net flow for a wallet — the foundation of any portfolio tracker or accounting tool.
-
-```graphql
-{
-  solana(network: solana) {
-    inflow: transfers(
-      receiverAddress: {is: "9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8"}
-      currency: {is: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}
-    ) {
-      total_in: amount
-      count
-    }
-    outflow: transfers(
-      senderAddress: {is: "9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8"}
-      currency: {is: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}
-    ) {
-      total_out: amount
-      count
-    }
-  }
-}
-```
+[Two named sub-queries in one request to get inflow and outflow for a currency for a wallet, which can useful for net-flow / PnL math](https://ide.bitquery.io/currency-outflow-and-inflow-for-a-wallet/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana).
 
 ### Transfers for a transaction signature
 
-Decompose a single Solana transaction into its underlying transfers — useful for explorers and forensic tooling.
-
-```graphql
-{
-  solana(network: solana) {
-    transfers(
-      txHash: {is: "3x3fbg3zfTvcfwEiDee5Z5NnQP2Hr7cgZZ9bMxNYtYKi6fMN9gT6xpdUzRb2FjfCkGXMPvhkt3bW61CHCNaWwdQi"}
-    ) {
-      sender { address }
-      receiver { address }
-      amount
-      currency { symbol address }
-    }
-  }
-}
-```
+[Decompose a signature into its underlying transfers](https://ide.bitquery.io/transfers-for-a-transaction_1/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana).
 
 ---
 
-## Migration Path: V1 → V2
+## V1 → V2 cheatsheet
 
-V1 is great for historical batch queries but does not support real-time WebSocket subscriptions, modern DEX cubes (Pump.fun, Raydium, Orca), or Solana Kafka/gRPC streams. For those, migrate to **V2**.
+Came up while migrating part of my project. Notes:
 
-| Feature | V1 | V2 |
+| | V1 | V2 |
 |---|---|---|
-| Endpoint | `graphql.bitquery.io` | `streaming.bitquery.io` |
+| Endpoint | `graphql.bitquery.io` | `streaming.bitquery.io/graphql` |
 | Schema | `solana(network: solana) { transfers(...) }` | `Solana { Transfers(...) }` |
-| Filters | `options`, `date`, lower-case args | `where`, `orderBy`, `limit` (PascalCase) |
-| Real-time WebSocket | ❌ | ✅ via `subscription` |
-| Pump.fun / Raydium | ❌ | ✅ |
-| Kafka topics | ❌ | ✅ `solana.tokens.proto` |
-| gRPC (CoreCast) | ❌ | ✅ |
+| Filter args | `options`, `date`, lowercase | `where`, `orderBy`, `limit` (PascalCase) |
+| Subscriptions | no | yes (WebSocket) |
+| Pump.fun / Raydium cubes | no | yes |
+| Kafka topics | no | yes (`solana.tokens.proto` etc.) |
+| gRPC (CoreCast) | no | yes |
 
-[V2 Solana Transfers Docs ➜](https://docs.bitquery.io/docs/blockchain/Solana/solana-transfers/)
-
----
-
-## Tools, IDEs & SDKs
-
-- 🛠️ **[Bitquery GraphQL IDE](https://ide.bitquery.io/)** — Interactive query editor with auto-complete, schema explorer, and sharing.
-- 🌐 **[Bitquery Solana Explorer](https://explorer.bitquery.io/solana)** — Browse blocks, transactions, transfers, DEX trades. Click "Get API" on any widget to copy the underlying GraphQL.
-- 🐙 **[bitquery/graphql-ide on GitHub](https://github.com/bitquery/graphql-ide)** — Self-host the IDE.
-- 📦 **[bitquery-crypto-price (npm)](https://github.com/bitquery/crypto-price-api)** — Convenience SDK with helpers for prices and aggregations.
-- 📓 **[Code samples (Python, JS, Go)](https://github.com/bitquery/grpc-code-samples)** — Streaming and batch examples.
+V2 transfers reference: [docs.bitquery.io/docs/blockchain/Solana/solana-transfers](https://docs.bitquery.io/docs/blockchain/Solana/solana-transfers/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana)
 
 ---
 
-## Use Cases
+## Tools
 
-- **Wallet analytics & portfolio trackers** — Inbound/outbound, net flow, P&L by token.
-- **Tax reporting** — Reconstruct full transfer history for any wallet across any date range.
-- **AML & compliance investigations** — Trace stolen funds, sanctioned-address screening, suspicious-activity reporting.
-- **Memecoin holder analytics** — Top holders, distribution heatmaps, top wallets by inflow.
-- **Stablecoin payment monitoring** — Detect on-chain settlements of USDC, USDT, EURC, PYUSD.
-- **Treasury reconciliation** — Match on-chain transfers to off-chain accounting.
+- [Bitquery IDE](https://ide.bitquery.io/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana) — Where I write/test queries. Schema explorer is on the right side.
+- [Solana explorer](https://explorer.bitquery.io/solana?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana) — "Get API" button on each widget gives you the underlying GraphQL, which is genuinely useful for learning the schema.
 
 ---
 
-## Pricing
+## Links
 
-Bitquery offers a free Developer plan plus paid tiers based on points (per-query cost). See [bitquery.io/pricing](https://bitquery.io/pricing).
+- V1 docs: [docs.bitquery.io/v1](https://docs.bitquery.io/v1/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana)
+- V2 docs: [docs.bitquery.io](https://docs.bitquery.io/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana)
+- Telegram (support): [t.me/Bloxy_info](https://t.me/Bloxy_info)
+- Forum: [community.bitquery.io](https://community.bitquery.io/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana)
+- GitHub: [github.com/bitquery](https://github.com/bitquery)
 
----
-
-## Community & Support
-
-- 📚 **V1 Docs:** [docs.bitquery.io/v1](https://docs.bitquery.io/v1/)
-- 📚 **V2 Docs:** [docs.bitquery.io](https://docs.bitquery.io/)
-- 💬 **Telegram:** [t.me/Bloxy_info](https://t.me/Bloxy_info)
-- 💬 **Forum:** [community.bitquery.io](https://community.bitquery.io/)
-- 🐦 **Twitter:** [@Bitquery_io](https://twitter.com/Bitquery_io)
-- ✉️ **Email:** support@bitquery.io
-- 🐙 **GitHub:** [github.com/bitquery](https://github.com/bitquery)
+PRs welcome if you have queries that should be here.
 
 ---
 
 ## License
 
-[CC0](https://creativecommons.org/publicdomain/zero/1.0/) — Free for any use. Contributions welcome via PR.
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/) — public domain. Use anything here however you want.
