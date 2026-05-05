@@ -87,8 +87,6 @@ Came up while migrating part of my project. Notes:
 | Filter args | `options`, `date`, lowercase | `where`, `orderBy`, `limit` (PascalCase) |
 | Subscriptions | no | yes (WebSocket) |
 | Pump.fun / Raydium cubes | no | yes |
-| Kafka topics | no | yes (`solana.tokens.proto` etc.) |
-| gRPC (CoreCast) | no | yes |
 
 V2 transfers reference: [docs.bitquery.io/docs/blockchain/Solana/solana-transfers](https://docs.bitquery.io/docs/blockchain/Solana/solana-transfers/?utm_source=github&utm_medium=readme&utm_campaign=awesomelistsolana)
 
